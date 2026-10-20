@@ -1,0 +1,396 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#12161a">
+<title>My TV Player – Remote</title>
+<style>
+  :root{--bg:#12161a;--card:#1e2327;--line:#2c3238;--text:#eee;--dim:#9aa0a6;--acc:#2f6bff;--bad:#5a2a2a}
+  *{box-sizing:border-box}
+  body{font-family:system-ui,Arial,sans-serif;background:var(--bg);color:var(--text);margin:0 auto;padding:0 12px 90px;max-width:720px}
+  h1{font-size:20px;margin:14px 0 8px}
+  h2{font-size:16px;margin:0 0 10px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .card{background:var(--card);border-radius:12px;padding:14px;margin-bottom:12px}
+  input,textarea,select{width:100%;padding:10px;margin-bottom:8px;border-radius:8px;border:1px solid #3a4046;background:var(--bg);color:var(--text);font-size:15px}
+  input[type=range]{padding:0;border:0;background:none;accent-color:var(--acc)}
+  input[type=checkbox]{width:auto;margin:0 8px 0 0;transform:scale(1.3)}
+  button{background:var(--acc);color:#fff;border:0;border-radius:8px;padding:10px 14px;font-size:15px;cursor:pointer}
+  button.g{background:#2c3238}
+  button.del{background:var(--bad);padding:6px 10px;font-size:13px}
+  button:active{filter:brightness(1.3)}
+  .row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--line)}
+  .row span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+  .btns{display:flex;flex-wrap:wrap;gap:6px}
+  .btns button{flex:1 1 auto;min-width:52px}
+  .dim{color:var(--dim);font-size:13px}
+  .big{font-size:22px}
+  #np{font-size:17px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #time{font-variant-numeric:tabular-nums}
+  .dpad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:300px;margin:6px auto}
+  .dpad button{height:62px;font-size:22px;background:#2c3238}
+  .dpad .ok{background:var(--acc);border-radius:50%}
+  .tabs{position:fixed;bottom:0;left:0;right:0;display:flex;background:#0c0f12;border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+  .tabs button{flex:1;background:none;border-radius:0;padding:12px 4px;font-size:12px;color:var(--dim)}
+  .tabs button.on{color:#fff;box-shadow:inset 0 3px 0 var(--acc)}
+  .tab{display:none}.tab.on{display:block}
+  .eqrow{display:flex;align-items:center;gap:8px}
+  .eqrow label{width:70px;font-size:13px;color:var(--dim)}
+  .eqrow span{width:70px;text-align:right;font-size:13px;font-variant-numeric:tabular-nums}
+  .lbl{display:flex;justify-content:space-between;font-size:14px;margin:6px 0 2px}
+  #toast{position:fixed;left:50%;bottom:76px;transform:translateX(-50%);background:#333b44;color:#fff;padding:10px 16px;border-radius:10px;opacity:0;transition:opacity .3s;pointer-events:none;max-width:90%;text-align:center}
+  #toast.on{opacity:1}
+  .q{padding:7px 0;border-top:1px solid var(--line);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+  .q.cur{color:#8ab4f8;font-weight:600}
+</style>
+</head>
+<body>
+<h1>📺 My TV Player</h1>
+
+<!-- ===================== REMOTE ===================== -->
+<div class="tab on" id="t-remote">
+  <div class="card">
+    <div id="np">Nothing playing</div>
+    <div class="dim" id="sub1"></div>
+    <input type="range" id="seek" min="0" max="1000" value="0">
+    <div class="lbl"><span id="time">0:00 / 0:00</span><span id="pos"></span></div>
+    <div class="btns">
+      <button class="g" onclick="cmd('prev')">⏮</button>
+      <button class="g" onclick="cmd('jump',-30000)">-30</button>
+      <button class="g" onclick="cmd('jump',-10000)">-10</button>
+      <button id="pp" onclick="cmd('toggle')">⏯</button>
+      <button class="g" onclick="cmd('jump',10000)">+10</button>
+      <button class="g" onclick="cmd('jump',30000)">+30</button>
+      <button class="g" onclick="cmd('next')">⏭</button>
+    </div>
+    <div class="dim" id="tor" style="margin-top:8px"></div>
+  </div>
+
+  <div class="card">
+    <div class="dpad">
+      <button onclick="key('back')">↩</button><button onclick="key('up')">▲</button><button onclick="key('menu')">☰</button>
+      <button onclick="key('left')">◀</button><button class="ok" onclick="key('ok')">OK</button><button onclick="key('right')">▶</button>
+      <button onclick="key('home')">⌂</button><button onclick="key('down')">▼</button><button onclick="cmd('stop')">⏹</button>
+    </div>
+    <div class="dim" style="text-align:center">Works like the TV remote: ▼ or ☰ opens the player menu.</div>
+  </div>
+
+  <div class="card">
+    <div class="lbl"><b>Volume</b><span id="volv">100%</span></div>
+    <input type="range" id="vol" min="0" max="200" step="5" value="100">
+    <div class="btns">
+      <button class="g" onclick="cmd('mute')">🔇 Mute</button>
+      <button class="g" onclick="cmd('vol',100)">100%</button>
+      <button class="g" onclick="cmd('vol',150)">150%</button>
+      <button class="g" onclick="cmd('vol',200)">200% boost</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Queue</h2>
+    <div id="queue" class="dim">Empty</div>
+  </div>
+</div>
+
+<!-- ===================== AUDIO & SUBS ===================== -->
+<div class="tab" id="t-tracks">
+  <div class="card">
+    <h2>Audio track</h2>
+    <select id="audio" onchange="cmd('audio',this.value)"></select>
+    <div class="lbl"><span>Audio delay (lip-sync)</span><span id="adv">0 s</span></div>
+    <div class="btns">
+      <button class="g" onclick="delay('adelay',-500)">-0.5</button><button class="g" onclick="delay('adelay',-50)">-0.05</button>
+      <button class="g" onclick="cmd('adelay',0)">Reset</button>
+      <button class="g" onclick="delay('adelay',50)">+0.05</button><button class="g" onclick="delay('adelay',500)">+0.5</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Subtitles</h2>
+    <select id="subs" onchange="cmd('sub',this.value)"></select>
+    <button class="g" onclick="cmd('sub',-1)" style="width:100%;margin-bottom:10px">Turn subtitles off</button>
+    <div class="lbl"><span>Subtitle delay</span><span id="sdv">0 s</span></div>
+    <div class="btns">
+      <button class="g" onclick="delay('sdelay',-1000)">-1</button><button class="g" onclick="delay('sdelay',-100)">-0.1</button>
+      <button class="g" onclick="cmd('sdelay',0)">Reset</button>
+      <button class="g" onclick="delay('sdelay',100)">+0.1</button><button class="g" onclick="delay('sdelay',1000)">+1</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Add a subtitle</h2>
+    <input type="file" id="subfile" accept=".srt,.ass,.ssa,.vtt,.sub,.idx,.smi,.txt,.zip,.gz">
+    <button onclick="upload()" style="width:100%;margin-bottom:12px">⬆ Upload file to TV</button>
+    <input id="suburl" placeholder="…or paste a subtitle link (.srt / .zip / .gz)">
+    <button onclick="subUrl()" style="width:100%">Load from link</button>
+  </div>
+
+  <div class="card">
+    <h2>Subtitle style</h2>
+    <div class="lbl"><span>Size</span></div><select id="subsize" onchange="cmd('subsize',this.value)"></select>
+    <div class="lbl"><span>Text encoding (fixes strange letters)</span></div><select id="subenc" onchange="cmd('subenc',this.value)"></select>
+    <label style="display:flex;align-items:center"><input type="checkbox" id="subbg" onchange="cmd('subbg',this.checked?1:0)">Dark box behind text</label>
+    <div class="dim">Style changes reload the video for a second.</div>
+  </div>
+</div>
+
+<!-- ===================== PICTURE & SOUND ===================== -->
+<div class="tab" id="t-pic">
+  <div class="card">
+    <h2>Picture</h2>
+    <div class="lbl"><span>Aspect ratio</span></div><select id="aspect" onchange="cmd('aspect',this.value)"></select>
+    <div class="lbl"><span>Fit</span></div><select id="fit" onchange="cmd('fit',this.value)"></select>
+    <div class="lbl"><span>Zoom / crop preset</span></div><select id="zoomsel" onchange="cmd('zoom',this.value)"></select>
+    <div class="lbl"><span>Zoom</span><span id="zoomv">100%</span></div>
+    <input type="range" id="zoom" min="50" max="300" step="1" value="100">
+  </div>
+
+  <div class="card">
+    <h2><span>Equalizer</span><label style="display:flex;align-items:center;font-weight:400"><input type="checkbox" id="eqon" onchange="cmd('eq_on',this.checked?1:0)">On</label></h2>
+    <select id="preset" onchange="cmd('eq_preset',this.value)"></select>
+    <div id="eqbands"></div>
+    <button class="g" onclick="cmd('eq_reset')" style="width:100%;margin-top:8px">Reset (flat)</button>
+  </div>
+
+  <div class="card">
+    <h2>Playback</h2>
+    <div class="lbl"><span>Speed</span></div><select id="rate" onchange="cmd('rate',this.value)"></select>
+    <div class="lbl"><span>Sleep timer</span><span id="sleepv"></span></div><select id="sleep" onchange="cmd('sleep',this.value)"></select>
+    <div class="lbl"><span>Decoder</span></div>
+    <select id="hw" onchange="cmd('hw',this.value)"><option value="0">Hardware (auto, best)</option><option value="1">Software (if video is green/broken)</option></select>
+    <div class="lbl"><span>Network buffer (bigger = fewer stalls)</span></div><select id="cache" onchange="cmd('cache',this.value)"></select>
+  </div>
+</div>
+
+<!-- ===================== LINKS ===================== -->
+<div class="tab" id="t-links">
+  <div class="card">
+    <h2>Play a link now</h2>
+    <textarea id="purl" rows="3" placeholder="Video link, stream (m3u8, mpd, rtsp…), magnet:?xt=… or .torrent link"></textarea>
+    <input id="ptitle" placeholder="Title (optional)">
+    <input id="psub" placeholder="Subtitle link (optional)">
+    <div class="btns">
+      <button onclick="playNow('now')">▶ Play on TV</button>
+      <button class="g" onclick="playNow('queue')">+ Add to queue</button>
+    </div>
+    <div class="btns" style="margin-top:8px">
+      <input id="ppl" list="pls" placeholder="Playlist name" style="flex:2;margin:0">
+      <button class="g" onclick="saveLink()" style="flex:1">💾 Save</button>
+    </div>
+    <div class="dim" style="margin-top:8px">Tip: on your phone, share/copy any video link or magnet and paste it here. Magnets need about 10–60 s to start.</div>
+  </div>
+
+  <div class="card">
+    <h2>Import an M3U playlist</h2>
+    <input id="ipl" list="pls" placeholder="Playlist name (new or existing)">
+    <input id="lk" placeholder="Link to an .m3u / .m3u8 file">
+    <textarea id="tx" rows="4" placeholder="…or paste the M3U text / one link per line"></textarea>
+    <button onclick="imp()">Import</button>
+  </div>
+
+  <div class="card">
+    <h2>Torrent</h2>
+    <div id="tor2" class="dim">No torrent running</div>
+    <button class="del" onclick="post('/torrentstop',{}).then(r=>toast(r.msg))" style="margin-top:8px">Stop torrent &amp; delete data</button>
+  </div>
+</div>
+
+<!-- ===================== PLAYLISTS ===================== -->
+<div class="tab" id="t-lists">
+  <div class="card">
+    <h2>Add a video to a playlist</h2>
+    <input id="pl" list="pls" placeholder="Playlist name (new or existing)">
+    <datalist id="pls"></datalist>
+    <input id="ti" placeholder="Title (optional)">
+    <input id="ur" placeholder="Video link, https://… or magnet:…">
+    <input id="us" placeholder="Subtitle link (optional)">
+    <button onclick="add()">Add</button>
+  </div>
+  <div id="lists"></div>
+</div>
+
+<div class="tabs">
+  <button class="on" data-t="remote">🎮<br>Remote</button>
+  <button data-t="tracks">💬<br>Audio &amp; Subs</button>
+  <button data-t="pic">🎚<br>Picture &amp; Sound</button>
+  <button data-t="links">🔗<br>Links</button>
+  <button data-t="lists">📋<br>Playlists</button>
+</div>
+<div id="toast"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+let S={},O=null,lastQ='',lastA='',lastS='',eqBuilt=0;
+function toast(t){if(!t)return;const e=$('toast');e.textContent=t;e.classList.add('on');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('on'),2500);}
+async function post(path,obj){
+  try{const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(obj)});return await r.json();}
+  catch(e){return {ok:false,msg:'Cannot reach the TV. Is it on the same Wi-Fi?'};}
+}
+async function cmd(c,v,b){const r=await post('/cmd',{c:c,v:v==null?'':v,b:b==null?'':b});if(r&&r.msg)toast(r.msg);poll();return r;}
+async function key(k){const r=await post('/key',{k:k});if(r&&!r.ok)toast(r.msg);setTimeout(poll,300);}
+function delay(k,d){const cur=k==='adelay'?(S.adelay||0):(S.sdelay||0);cmd(k,cur+d);}
+function fmt(ms){ms=Math.max(0,ms|0);let s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor(s/60)%60;s%=60;return (h?h+':'+String(m).padStart(2,'0'):m)+':'+String(s).padStart(2,'0');}
+function busy(el){return el._t&&Date.now()-el._t<2500;}
+function setVal(el,v){if(!busy(el)&&document.activeElement!==el)el.value=v;}
+function fill(sel,pairs,cur){const el=$(sel);const sig=JSON.stringify(pairs);if(el._sig!==sig){el.innerHTML='';pairs.forEach(p=>{const o=document.createElement('option');o.value=p[0];o.textContent=p[1];el.appendChild(o);});el._sig=sig;}setVal(el,String(cur));}
+
+// tabs
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.id==='t-'+b.dataset.t));
+  if(b.dataset.t==='lists')load();
+});
+
+// sliders
+$('seek').addEventListener('input',e=>{e.target._t=Date.now();if(S.len)$('time').textContent=fmt(S.len*e.target.value/1000)+' / '+fmt(S.len);});
+$('seek').addEventListener('change',e=>{e.target._t=Date.now();if(S.len)cmd('seek',Math.round(S.len*e.target.value/1000));});
+$('vol').addEventListener('input',e=>{e.target._t=Date.now();$('volv').textContent=e.target.value+'%';});
+$('vol').addEventListener('change',e=>{e.target._t=Date.now();cmd('vol',e.target.value);});
+$('zoom').addEventListener('input',e=>{e.target._t=Date.now();$('zoomv').textContent=e.target.value+'%';});
+$('zoom').addEventListener('change',e=>{e.target._t=Date.now();cmd('zoom',e.target.value);});
+
+async function loadOptions(){
+  try{O=await (await fetch('/options')).json();}catch(e){return;}
+  fill('aspect',O.aspects,'');fill('fit',O.fits,0);fill('zoomsel',O.zooms,100);
+  fill('subsize',O.subsizes,16);fill('subenc',O.encs,'');
+  fill('rate',O.speeds.map(s=>[String(s),s+'x']),'1');
+  fill('cache',O.caches.map(c=>[String(c),(c/1000)+' seconds']),2000);
+  fill('sleep',O.sleeps.map(m=>[String(m),m===0?'Off':m<0?'End of this video':m+' minutes']),'0');
+}
+
+function buildEq(bands){
+  const box=$('eqbands');box.innerHTML='';
+  const mk=(label,val,cb)=>{
+    const r=document.createElement('div');r.className='eqrow';
+    const l=document.createElement('label');l.textContent=label;
+    const i=document.createElement('input');i.type='range';i.min=-20;i.max=20;i.step=0.5;i.value=val;
+    const s=document.createElement('span');s.textContent=(+val).toFixed(1)+' dB';
+    i.oninput=()=>{i._t=Date.now();s.textContent=(+i.value).toFixed(1)+' dB';};
+    i.onchange=()=>{i._t=Date.now();cb(i.value);};
+    r.appendChild(l);r.appendChild(i);r.appendChild(s);box.appendChild(r);return [i,s];
+  };
+  box._pre=mk('Preamp',S.eq.preamp,v=>cmd('eq_preamp',v));
+  box._bands=bands.map((b,k)=>mk(b.f,b.v,v=>cmd('eq_band',v,k)));
+  eqBuilt=bands.length;
+}
+
+function render(){
+  const p=S.player;
+  $('np').textContent=p?(S.title||'Playing'):'Nothing playing on the TV';
+  $('sub1').textContent=p?((S.count>1?(S.idx+1)+' of '+S.count+' · ':'')+(S.playing?'Playing':'Paused')+(S.rate&&S.rate!=1?' · '+S.rate+'x':'')+(S.sleep&&S.sleep!=='Off'?' · Sleep '+S.sleep:'')+(S.loading?' · '+S.loading.split('\n')[0]:'')):'Use the Links tab to play something.';
+  $('pp').textContent=p&&S.playing?'⏸':'▶';
+  if(p&&S.len>0){setVal($('seek'),Math.round(1000*S.pos/S.len));if(!busy($('seek')))$('time').textContent=fmt(S.pos)+' / '+fmt(S.len);$('pos').textContent=Math.round(100*S.pos/S.len)+'%';}
+  else{$('time').textContent=p?('Live · '+fmt(S.pos)):'';$('pos').textContent='';}
+  setVal($('vol'),S.vol);if(!busy($('vol')))$('volv').textContent=(S.muted?'Muted · ':'')+S.vol+'%'+(S.vol>100?' (boost)':'');
+  // tracks
+  const a=JSON.stringify(S.audio||[]);if(a!==lastA){lastA=a;fill('audio',(S.audio||[]).map(t=>[String(t.id),t.name]),S.audioSel);}else setVal($('audio'),String(S.audioSel));
+  const s=JSON.stringify(S.subs||[]);if(s!==lastS){lastS=s;fill('subs',(S.subs||[]).map(t=>[String(t.id),t.name]),S.subSel);}else setVal($('subs'),String(S.subSel));
+  if(!p){fill('audio',[['','(nothing playing)']],'');fill('subs',[['','(nothing playing)']],'');lastA=lastS='';}
+  $('adv').textContent=((S.adelay||0)/1000).toFixed(2)+' s';$('sdv').textContent=((S.sdelay||0)/1000).toFixed(2)+' s';
+  if(O){
+    setVal($('aspect'),S.aspect);setVal($('fit'),String(S.fit));setVal($('zoomsel'),String(S.zoom));
+    setVal($('subsize'),String(S.subsize));setVal($('subenc'),S.subenc);setVal($('cache'),String(S.cache));
+    if(S.rate)setVal($('rate'),String(S.rate));
+    $('sleepv').textContent=S.sleep||'';
+  }
+  setVal($('zoom'),S.zoom);if(!busy($('zoom')))$('zoomv').textContent=S.zoom+'%';
+  $('subbg').checked=!!S.subbg;setVal($('hw'),String(S.hw));
+  // equalizer
+  if(S.eq){
+    $('eqon').checked=S.eq.on;
+    if(O)fill('preset',[['-1','Custom']].concat(O.presets.map((n,i)=>[String(i),n])),String(S.eq.preset));
+    if(eqBuilt!==S.eq.bands.length)buildEq(S.eq.bands);
+    const box=$('eqbands');
+    if(box._pre&&!busy(box._pre[0])){box._pre[0].value=S.eq.preamp;box._pre[1].textContent=(+S.eq.preamp).toFixed(1)+' dB';}
+    (box._bands||[]).forEach((x,k)=>{if(!busy(x[0])&&S.eq.bands[k]){x[0].value=S.eq.bands[k].v;x[1].textContent=(+S.eq.bands[k].v).toFixed(1)+' dB';}});
+  }
+  // torrent
+  const t=S.torrent||{};
+  const ts=t.active?('🧲 '+t.name+' · '+t.peers+' peers · '+(t.speed/1048576).toFixed(2)+' MB/s · '+t.progress+'%'):(t.state&&t.state!=='idle'?'🧲 '+t.state:'');
+  $('tor').textContent=ts;$('tor2').textContent=ts||'No torrent running';
+  // queue
+  const q=JSON.stringify([S.queue||[],S.idx]);
+  if(q!==lastQ){lastQ=q;const box=$('queue');box.innerHTML='';
+    (S.queue||[]).forEach((n,i)=>{const d=document.createElement('div');d.className='q'+(i===S.idx?' cur':'');d.textContent=(i+1)+'. '+n;d.onclick=()=>cmd('item',i);box.appendChild(d);});
+    if(!(S.queue||[]).length)box.textContent='Empty';}
+}
+
+let polling=false;
+async function poll(){
+  if(polling)return;polling=true;
+  try{S=await (await fetch('/state')).json();if(!O||(S.player&&O.presets&&O.presets.length<2))await loadOptions();render();}
+  catch(e){$('np').textContent='Cannot reach the TV – is My TV Player installed and the TV on?';}
+  polling=false;
+}
+setInterval(poll,1000);
+
+async function upload(){
+  const f=$('subfile').files[0];if(!f){toast('Choose a file first');return;}
+  const fd=new FormData();fd.append('file',f,f.name);
+  try{const r=await (await fetch('/subupload',{method:'POST',body:fd})).json();toast(r.msg||(r.ok?'Loaded':'Failed'));}
+  catch(e){toast('Upload failed');}
+}
+async function subUrl(){const u=$('suburl').value.trim();if(!u){toast('Paste a link first');return;}toast('Downloading subtitle…');const r=await cmd('subadd',u);if(r.ok)$('suburl').value='';}
+async function playNow(mode){
+  const r=await post('/play',{url:$('purl').value,title:$('ptitle').value,sub:$('psub').value,mode:mode});
+  toast(r.msg||(r.ok?'Sent':'Failed'));
+  if(r.ok){$('purl').value='';$('ptitle').value='';$('psub').value='';}
+}
+async function saveLink(){
+  const r=await post('/add',{playlist:$('ppl').value,title:$('ptitle').value,url:$('purl').value,sub:$('psub').value});
+  toast(r.ok?'Saved to playlist':(r.msg||'Failed'));load();
+}
+
+// ---------- playlists ----------
+async function load(){
+  try{const r=await fetch('/data');const d=await r.json();renderLists(d.playlists);}
+  catch(e){toast('Cannot reach the TV.');}
+}
+function renderLists(pls){
+  const dl=$('pls');dl.innerHTML='';
+  const box=$('lists');box.innerHTML='';
+  pls.forEach(function(p){
+    const o=document.createElement('option');o.value=p.name;dl.appendChild(o);
+    const c=document.createElement('div');c.className='card';
+    const h=document.createElement('h2');
+    const ht=document.createElement('span');ht.textContent=p.name+' ('+p.items.length+')';
+    const bx=document.createElement('div');bx.className='btns';
+    const pp=document.createElement('button');pp.textContent='▶ Play all';
+    pp.onclick=async()=>{const r=await post('/playlist',{playlist:p.name,idx:0});toast(r.msg);};
+    const dp=document.createElement('button');dp.textContent='Delete';dp.className='del';
+    dp.onclick=async function(){if(confirm('Delete playlist '+p.name+'?')){await post('/delpl',{playlist:p.name});load();}};
+    bx.appendChild(pp);bx.appendChild(dp);h.appendChild(ht);h.appendChild(bx);c.appendChild(h);
+    p.items.forEach(function(it,i){
+      const row=document.createElement('div');row.className='row';
+      const s=document.createElement('span');s.textContent=(it.u.startsWith('magnet:')?'🧲 ':'')+it.t;s.title=it.u;
+      const pl=document.createElement('button');pl.textContent='▶';pl.className='g';
+      pl.onclick=async()=>{const r=await post('/playlist',{playlist:p.name,idx:i});toast(r.msg);};
+      const up=document.createElement('button');up.textContent='↑';up.className='g';
+      up.onclick=async()=>{await post('/move',{playlist:p.name,idx:i,dir:-1});load();};
+      const b=document.createElement('button');b.textContent='✕';b.className='del';
+      b.onclick=async function(){await post('/del',{playlist:p.name,idx:i});load();};
+      row.appendChild(s);row.appendChild(pl);row.appendChild(up);row.appendChild(b);c.appendChild(row);
+    });
+    box.appendChild(c);
+  });
+}
+async function add(){
+  const r=await post('/add',{playlist:$('pl').value,title:$('ti').value,url:$('ur').value,sub:$('us').value});
+  toast(r.ok?'Added.':(r.msg||'Failed'));
+  if(r.ok){$('ti').value='';$('ur').value='';$('us').value='';}
+  load();
+}
+async function imp(){
+  toast('Importing…');
+  const r=await post('/import',{playlist:$('ipl').value,link:$('lk').value,text:$('tx').value});
+  toast(r.ok?('Imported '+r.added+' videos.'):(r.msg||'Failed'));
+  if(r.ok){$('lk').value='';$('tx').value='';}
+  load();
+}
+
+// Open with ?url=... to send a link straight to the TV (handy for bookmarks/shortcuts)
+(function(){const u=new URLSearchParams(location.search).get('url');if(u){$('purl').value=u;document.querySelector('[data-t=links]').click();playNow('now');history.replaceState(null,'','/');}})();
+loadOptions().then(poll);load();
+</script>
+</body>
+</html>
